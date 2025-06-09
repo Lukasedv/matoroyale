@@ -1,0 +1,30 @@
+{
+  "name": "mato-royale-functions",
+  "version": "1.0.0",
+  "description": "Azure Functions for round orchestration",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "prestart": "npm run build",
+    "start": "func start",
+    "test": "echo \"No tests yet...\"",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.1",
+    "durable-functions": "^2.1.1",
+    "axios": "^1.5.0"
+  },
+  "devDependencies": {
+    "azure-functions-core-tools": "^4.0.5455",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.1.6",
+    "eslint": "^8.45.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

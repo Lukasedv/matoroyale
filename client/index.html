@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#4ECDC4" />
+    <meta name="description" content="Mass-multiplayer browser Snake game - Join the battle!" />
+    
+    <!-- Apple Web App -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mato Royale" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    
+    <title>🐍 Mato Royale - Mass Multiplayer Snake</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f23 100%);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(78, 205, 196, 0.3);
+            border-top: 4px solid #4ECDC4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4ECDC4;
+            margin-bottom: 10px;
+        }
+        
+        .loading-subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 300px;
+        }
+        
+        /* Mobile controls */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            z-index: 100;
+        }
+        
+        .dpad {
+            width: 120px;
+            height: 120px;
+            position: relative;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            border: 2px solid rgba(78, 205, 196, 0.3);
+        }
+        
+        .dpad-button {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(78, 205, 196, 0.8);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            touch-action: manipulation;
+        }
+        
+        .dpad-button:active {
+            background: #4ECDC4;
+            transform: scale(0.95);
+        }
+        
+        .dpad-up { top: 10px; left: 50%; transform: translateX(-50%); }
+        .dpad-down { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .dpad-left { left: 10px; top: 50%; transform: translateY(-50%); }
+        .dpad-right { right: 10px; top: 50%; transform: translateY(-50%); }
+        
+        /* UI Overlay */
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 200px;
+            border: 1px solid rgba(78, 205, 196, 0.3);
+        }
+        
+        .leaderboard h3 {
+            color: #4ECDC4;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        
+        .leaderboard-entry {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        
+        .game-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(78, 205, 196, 0.3);
+        }
+        
+        .score {
+            font-size: 24px;
+            font-weight: 700;
+            color: #4ECDC4;
+            margin-bottom: 8px;
+        }
+        
+        .round-timer {
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        /* Connection status */
+        .connection-status {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .connected {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+            border: 1px solid #4CAF50;
+        }
+        
+        .disconnected {
+            background: rgba(244, 67, 54, 0.2);
+            color: #F44336;
+            border: 1px solid #F44336;
+        }
+        
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            #mobile-controls {
+                display: block;
+            }
+            
+            .leaderboard {
+                top: 10px;
+                right: 10px;
+                padding: 12px;
+                min-width: 160px;
+            }
+            
+            .game-info {
+                top: 10px;
+                left: 10px;
+                padding: 12px;
+            }
+            
+            .score {
+                font-size: 20px;
+            }
+            
+            .round-timer {
+                font-size: 16px;
+            }
+        }
+        
+        /* Landscape mobile */
+        @media screen and (orientation: landscape) and (max-height: 500px) {
+            .leaderboard,
+            .game-info {
+                padding: 8px;
+                font-size: 11px;
+            }
+            
+            .score {
+                font-size: 16px;
+            }
+            
+            .round-timer {
+                font-size: 14px;
+            }
+            
+            #mobile-controls {
+                bottom: 10px;
+            }
+            
+            .dpad {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .dpad-button {
+                width: 32px;
+                height: 32px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text">Joining the Battle...</div>
+            <div class="loading-subtitle">Connecting to game servers</div>
+        </div>
+        
+        <div id="ui-overlay">
+            <div class="game-info">
+                <div class="score" id="player-score">0</div>
+                <div class="round-timer" id="round-timer">--:--</div>
+            </div>
+            
+            <div class="leaderboard" id="leaderboard">
+                <h3>🏆 Top Players</h3>
+                <div id="leaderboard-list">
+                    <div class="leaderboard-entry">
+                        <span>Waiting for players...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="connection-status connected" id="connection-status">
+                ● Connected
+            </div>
+        </div>
+        
+        <div id="mobile-controls">
+            <div class="dpad">
+                <button class="dpad-button dpad-up" data-direction="up">↑</button>
+                <button class="dpad-button dpad-down" data-direction="down">↓</button>
+                <button class="dpad-button dpad-left" data-direction="left">←</button>
+                <button class="dpad-button dpad-right" data-direction="right">→</button>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

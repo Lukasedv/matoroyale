@@ -1,0 +1,75 @@
+{
+  "name": "mato-royale",
+  "version": "1.0.0",
+  "description": "Mass-multiplayer browser Snake game for keynote demos",
+  "private": true,
+  "workspaces": [
+    "client",
+    "engine",
+    "functions"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:client && npm run install:engine && npm run install:functions",
+    "install:client": "cd client && npm install",
+    "install:engine": "cd engine && npm install", 
+    "install:functions": "cd functions && npm install",
+    "dev": "concurrently \"npm run dev:engine\" \"npm run dev:client\" \"npm run dev:functions\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:engine": "cd engine && npm run dev",
+    "dev:functions": "cd functions && npm run start",
+    "build": "npm run build:client && npm run build:engine",
+    "build:client": "cd client && npm run build",
+    "build:engine": "cd engine && npm run build",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "npm run test:engine",
+    "test:engine": "cd engine && npm test",
+    "test:e2e": "cd tests && npm run test:e2e",
+    "test:load": "cd tests && npm run test:load",
+    "deploy": "cd infra && az deployment group create --resource-group SnakeDemo-RG --template-file main.bicep && npm run deploy:client && npm run deploy:engine",
+    "deploy:client": "cd client && npm run deploy",
+    "deploy:engine": "docker build -t mato-royale-engine ./engine && docker tag mato-royale-engine snakedemoacr.azurecr.io/mato-royale-engine:latest && docker push snakedemoacr.azurecr.io/mato-royale-engine:latest",
+    "lint": "npm run lint:client && npm run lint:engine",
+    "lint:client": "cd client && npm run lint",
+    "lint:engine": "cd engine && npm run lint",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "concurrently": "^8.2.0",
+    "eslint": "^8.45.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.3",
+    "prettier": "^3.0.0",
+    "typescript": "^5.1.6"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/mato-royale.git"
+  },
+  "keywords": [
+    "snake",
+    "multiplayer",
+    "realtime",
+    "azure",
+    "phaser",
+    "websocket"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
