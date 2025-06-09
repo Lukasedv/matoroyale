@@ -15,7 +15,7 @@ export async function startRound(input: any, context: InvocationContext): Promis
         context.log('✅ Round started successfully:', response.data);
         return response.data;
     } catch (error) {
-        context.log.error('❌ Failed to start round:', error);
+        context.log('❌ Failed to start round:', error);
         throw error;
     }
 }
@@ -34,7 +34,7 @@ export async function endRound(input: any, context: InvocationContext): Promise<
         context.log('✅ Round ended successfully:', response.data);
         return response.data;
     } catch (error) {
-        context.log.error('❌ Failed to end round:', error);
+        context.log('❌ Failed to end round:', error);
         throw error;
     }
 }
@@ -53,12 +53,9 @@ export async function resetArena(input: any, context: InvocationContext): Promis
         context.log('✅ Arena reset successfully:', response.data);
         return response.data;
     } catch (error) {
-        context.log.error('❌ Failed to reset arena:', error);
+        context.log('❌ Failed to reset arena:', error);
         throw error;
     }
 }
 
-// Register activity functions
-app.activity('startRound', { handler: startRound });
-app.activity('endRound', { handler: endRound });
-app.activity('resetArena', { handler: resetArena });
+// Activity functions for durable orchestration

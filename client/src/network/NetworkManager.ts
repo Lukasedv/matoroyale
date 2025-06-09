@@ -3,15 +3,59 @@ import { Direction } from '../types/GameTypes';
 
 export class NetworkManager extends EventTarget {
   private connection: HubConnection | null = null;
+  private ws: WebSocket | null = null;
   private isConnected = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+  private useWebSocket = true; // Use WebSocket for local development
 
   constructor() {
     super();
   }
 
   async connect(): Promise<void> {
+    if (this.useWebSocket) {
+      await this.connectWebSocket();
+    } else {
+      await this.connectSignalR();
+    }
+  }
+
+  private async connectWebSocket(): Promise<void> {
+    const wsUrl = this.getWebSocketUrl();
+    console.log('🔗 Connecting to WebSocket at:', wsUrl);
+
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      this.isConnected = true;
+      this.reconnectAttempts = 0;
+      console.log('✅ Connected to WebSocket');
+      this.dispatchEvent(new CustomEvent('connected'));
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        this.handleMessage(data);
+      } catch (error) {
+        console.error('❌ Failed to parse WebSocket message:', error);
+      }
+    };
+
+    this.ws.onclose = () => {
+      this.isConnected = false;
+      console.log('🔌 WebSocket connection closed');
+      this.dispatchEvent(new CustomEvent('disconnected'));
+    };
+
+    this.ws.onerror = (error) => {
+      console.error('❌ WebSocket error:', error);
+      this.handleConnectionError();
+    };
+  }
+
+  private async connectSignalR(): Promise<void> {
     const signalRUrl = this.getSignalRUrl();
     
     console.log('🔗 Connecting to SignalR at:', signalRUrl);
@@ -41,7 +85,36 @@ export class NetworkManager extends EventTarget {
     }
   }
 
+  private handleMessage(data: any): void {
+    console.log('📨 Received message:', data);
+    
+    switch (data.type) {
+      case 'playerJoined':
+        console.log('👤 Player joined:', data);
+        this.dispatchEvent(new CustomEvent('playerJoined', { detail: data }));
+        break;
+      case 'gameUpdate':
+        this.dispatchEvent(new CustomEvent('gameUpdate', { detail: data }));
+        break;
+      case 'roundStarted':
+        this.dispatchEvent(new CustomEvent('roundStarted', { detail: data }));
+        break;
+      case 'roundEnded':
+        this.dispatchEvent(new CustomEvent('roundEnded', { detail: data }));
+        break;
+      case 'arenaReset':
+        this.dispatchEvent(new CustomEvent('arenaReset', { detail: data }));
+        break;
+      default:
+        console.log('Unknown message type:', data.type);
+    }
+  }
+
   private setupEventHandlers(): void {
+    this.setupSignalREventHandlers();
+  }
+
+  private setupSignalREventHandlers(): void {
     if (!this.connection) return;
 
     // Connection events
@@ -86,20 +159,30 @@ export class NetworkManager extends EventTarget {
   }
 
   async sendInput(direction: Direction): Promise<void> {
-    if (!this.isConnected || !this.connection) {
+    if (!this.isConnected) {
       console.warn('⚠️  Cannot send input - not connected');
       return;
     }
 
     try {
-      await this.connection.invoke('SendInput', direction);
+      if (this.useWebSocket && this.ws) {
+        this.ws.send(JSON.stringify({
+          type: 'SendInput',
+          direction: direction
+        }));
+      } else if (this.connection) {
+        await this.connection.invoke('SendInput', direction);
+      }
     } catch (error) {
       console.error('❌ Failed to send input:', error);
     }
   }
 
   async disconnect(): Promise<void> {
-    if (this.connection) {
+    if (this.useWebSocket && this.ws) {
+      this.ws.close();
+      console.log('🔌 Disconnected from WebSocket');
+    } else if (this.connection) {
       try {
         await this.connection.stop();
         console.log('🔌 Disconnected from SignalR');
@@ -115,6 +198,13 @@ export class NetworkManager extends EventTarget {
     // For now, we'll use the engine URL or fallback to localhost
     const engineUrl = import.meta.env.VITE_ENGINE_URL || 'http://localhost:3001';
     return `${engineUrl}/gameHub`;
+  }
+
+  private getWebSocketUrl(): string {
+    // Convert HTTP URL to WebSocket URL
+    const engineUrl = import.meta.env.VITE_ENGINE_URL || 'http://localhost:3001';
+    const wsUrl = engineUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+    return `${wsUrl}/gameHub`;
   }
 
   private handleConnectionError(): void {

@@ -1,11 +1,16 @@
 // SignalR Service for real-time communication
 // Note: In production, this would connect to Azure SignalR Service
-// For now, we'll use a mock implementation for local development
+// For local development, we'll use WebSocket connections
+
+import { WebSocket } from 'ws';
 
 export class SignalRService {
   private connectionString: string;
   private hubName = 'gameHub';
-  private connections = new Map<string, any>();
+  private connections = new Map<string, WebSocket>();
+  private playerJoinedHandlers: ((connectionId: string) => void)[] = [];
+  private playerLeftHandlers: ((connectionId: string) => void)[] = [];
+  private playerInputHandlers: ((connectionId: string, direction: number) => void)[] = [];
 
   constructor() {
     this.connectionString = process.env.SIGNALR_CONNECTION_STRING || '';
@@ -38,28 +43,48 @@ export class SignalRService {
 
   // Event handlers
   onPlayerJoined(handler: (connectionId: string) => void): void {
-    // Mock implementation - in reality this would listen to SignalR events
     console.log('📥 Player joined handler registered');
-    
-    // For demo purposes, simulate player joining after 2 seconds
-    setTimeout(() => {
-      const mockConnectionId = `mock-${Date.now()}`;
-      handler(mockConnectionId);
-    }, 2000);
+    this.playerJoinedHandlers.push(handler);
   }
 
   onPlayerLeft(handler: (connectionId: string) => void): void {
     console.log('📤 Player left handler registered');
+    this.playerLeftHandlers.push(handler);
   }
 
   onPlayerInput(handler: (connectionId: string, direction: number) => void): void {
     console.log('🎮 Player input handler registered');
+    this.playerInputHandlers.push(handler);
+  }
+
+  // Simulation methods for WebSocket integration
+  simulatePlayerJoined(connectionId: string): void {
+    this.playerJoinedHandlers.forEach(handler => handler(connectionId));
+  }
+
+  simulatePlayerLeft(connectionId: string): void {
+    this.playerLeftHandlers.forEach(handler => handler(connectionId));
+  }
+
+  simulatePlayerInput(connectionId: string, direction: number): void {
+    this.playerInputHandlers.forEach(handler => handler(connectionId, direction));
   }
 
   // Broadcasting methods
   async broadcast(method: string, data: any): Promise<void> {
+    const message = JSON.stringify({
+      type: method,
+      ...data
+    });
+
     if (!this.connectionString) {
-      console.log(`📢 [MOCK] Broadcasting ${method}:`, JSON.stringify(data).substring(0, 100) + '...');
+      // Send to all WebSocket connections
+      console.log(`📢 Broadcasting ${method} to ${this.connections.size} connections`);
+      this.connections.forEach((ws, connectionId) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(message);
+        }
+      });
       return;
     }
 
@@ -72,8 +97,20 @@ export class SignalRService {
   }
 
   async sendToConnection(connectionId: string, method: string, data: any): Promise<void> {
+    const message = JSON.stringify({
+      type: method,
+      ...data
+    });
+
     if (!this.connectionString) {
-      console.log(`📤 [MOCK] Sending ${method} to ${connectionId}:`, JSON.stringify(data).substring(0, 100) + '...');
+      // Send to specific WebSocket connection
+      const ws = this.connections.get(connectionId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log(`📤 Sending ${method} to ${connectionId}`);
+        ws.send(message);
+      } else {
+        console.warn(`⚠️  Connection ${connectionId} not found or not open`);
+      }
       return;
     }
 
@@ -100,8 +137,8 @@ export class SignalRService {
   }
 
   // Connection management
-  addConnection(connectionId: string, context: any): void {
-    this.connections.set(connectionId, context);
+  addConnection(connectionId: string, ws: WebSocket): void {
+    this.connections.set(connectionId, ws);
     console.log(`🔗 Connection added: ${connectionId} (total: ${this.connections.size})`);
   }
 
